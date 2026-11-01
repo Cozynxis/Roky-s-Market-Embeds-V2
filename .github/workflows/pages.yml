@@ -1,0 +1,36 @@
+name: Deploy Embed Studio
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inject API URL
+        env:
+          API_URL: ${{ vars.VITE_API_URL }}
+        run: |
+          if [ -z "$API_URL" ]; then echo 'Set repository Actions variable VITE_API_URL'; exit 1; fi
+          python - <<'PY'
+          import os,pathlib,json
+          f=pathlib.Path('index.html')
+          f.write_text(f.read_text().replace('__API_URL__',json.dumps(os.environ['API_URL'].rstrip('/'))))
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        environment:
+          name: github-pages
+          url: ${{ steps.deployment.outputs.page_url }}
